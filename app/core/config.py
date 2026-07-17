@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60
-    GOOGLE_CLIENT_ID: str
+    FIREBASE_CREDENTIALS_PATH: str = "firebase-service-account.json"
 
     class Config:
         env_file = ".env"

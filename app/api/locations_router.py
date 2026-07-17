@@ -7,7 +7,7 @@ import math
 from app.database.database import get_db
 from app.models.location_model import Location
 from app.models.user_model import User
-from app.api.profile_router import get_current_user
+from app.api.profile_router import get_current_user, get_admin_user
 
 router = APIRouter(prefix="/api/locations", tags=["Locations"])
 
@@ -154,7 +154,7 @@ def get_location(
 def create_location(
     body: LocationCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
     # TODO: verificar rol admin cuando se implemente
     # if current_user.role != "admin":
@@ -182,7 +182,7 @@ def update_location(
     location_id: str,
     body: LocationUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
     loc = db.query(Location).filter(Location.id == location_id).first()
     if not loc:
@@ -202,7 +202,7 @@ def update_location(
 def delete_location(
     location_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
     loc = db.query(Location).filter(Location.id == location_id).first()
     if not loc:

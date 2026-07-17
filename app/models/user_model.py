@@ -13,14 +13,17 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
 
-    # Auth local — NULL si el usuario entró con Google
+    # Auth local
     password_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
-    # Auth Google — NULL si el usuario se registró manualmente
+    # Auth Google
     google_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
 
     # 'local' | 'google'
     auth_provider: Mapped[str] = mapped_column(String(10), default="local", nullable=False)
+
+    # 'user' | 'admin'
+    role: Mapped[str] = mapped_column(String(10), default="user", nullable=False)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
