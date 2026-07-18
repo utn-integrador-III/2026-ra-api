@@ -1,37 +1,42 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from jose import JWTError, jwt
+from pydantic import BaseModel
+from typing import Optional
 
 from app.database.database import get_db
 from app.models.user_model import User
 from app.core.security import decode_access_token
 from app.schemas.auth_schemas import UserOut
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
-from typing import Optional
 
 router = APIRouter(prefix="/api", tags=["Profile"])
 security = HTTPBearer()
 
 
-# ── Dependencia para obtener usuario actual ──────────────────────────
+# ── Dependencia: usuario actual ──────────────────────────────────────
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
-    token = credentials.credentials
-    payload = decode_access_token(token)
+    payload = decode_access_token(credentials.credentials)
     if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido o expirado"
-        )
-    user_id = payload.get("sub")
-    user = db.query(User).filter(User.id == user_id).first()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o expirado")
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
+
+
+# ── Dependencia: solo admins ─────────────────────────────────────────
+
+def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso denegado — se requiere rol de administrador"
+        )
+    return current_user
 
 
 # ── Schemas ──────────────────────────────────────────────────────────
@@ -46,26 +51,23 @@ class ProfileResponse(BaseModel):
     name: str
     email: str
     auth_provider: str
+    role: str
     badge: str = "Explorer"
     stats: ProfileStats
-
     model_config = {"from_attributes": True}
 
-class RecentItem(BaseModel):
-    id: str
-    name: str
-    address: str
-    time_ago: str
+class UpdateProfileRequest(BaseModel):
+    name: Optional[str] = None
 
-class FavoriteItem(BaseModel):
-    id: str
+class AddFavoriteRequest(BaseModel):
     name: str
     address: str
+    latitude: float
+    longitude: float
 
 
 # ── GET /api/auth/profile ────────────────────────────────────────────
 
-# ANTES
 @router.get("/auth/profile", response_model=ProfileResponse)
 def get_profile(current_user: User = Depends(get_current_user)):
     return ProfileResponse(
@@ -73,14 +75,13 @@ def get_profile(current_user: User = Depends(get_current_user)):
         name=current_user.name,
         email=current_user.email,
         auth_provider=current_user.auth_provider,
-        badge="Explorer",
+        role=current_user.role,
+        badge="Admin" if current_user.role == "admin" else "Explorer",
         stats=ProfileStats(routes=0, favorites=0, avg_km=0.0),
     )
 
-# ── PUT /api/auth/profile ────────────────────────────────────────────
 
-class UpdateProfileRequest(BaseModel):
-    name: Optional[str] = None
+# ── PUT /api/auth/profile ────────────────────────────────────────────
 
 @router.put("/auth/profile", response_model=UserOut)
 def update_profile(
@@ -99,47 +100,66 @@ def update_profile(
 
 @router.get("/history/routes")
 def get_routes_history(current_user: User = Depends(get_current_user)):
-    # TODO: conectar con tabla de rutas cuando esté implementada
-    return {
-        "routes": [],
-        "total": 0
-    }
+    return {"routes": [], "total": 0}
 
 
 # ── GET /api/favorites ───────────────────────────────────────────────
 
 @router.get("/favorites")
 def get_favorites(current_user: User = Depends(get_current_user)):
-    # TODO: conectar con tabla de favoritos cuando esté implementada
-    return {
-        "favorites": [],
-        "total": 0
-    }
+    return {"favorites": [], "total": 0}
 
 
 # ── POST /api/favorites ──────────────────────────────────────────────
 
-class AddFavoriteRequest(BaseModel):
-    name: str
-    address: str
-    latitude: float
-    longitude: float
-
 @router.post("/favorites", status_code=status.HTTP_201_CREATED)
-def add_favorite(
-    body: AddFavoriteRequest,
-    current_user: User = Depends(get_current_user),
-):
-    # TODO: guardar en BD cuando esté la tabla
+def add_favorite(body: AddFavoriteRequest, current_user: User = Depends(get_current_user)):
     return {"message": "Favorito agregado", "name": body.name}
 
 
 # ── DELETE /api/favorites/{id} ───────────────────────────────────────
 
 @router.delete("/favorites/{favorite_id}")
-def delete_favorite(
-    favorite_id: str,
-    current_user: User = Depends(get_current_user),
-):
-    # TODO: eliminar de BD
+def delete_favorite(favorite_id: str, current_user: User = Depends(get_current_user)):
     return {"message": "Favorito eliminado"}
+
+
+# ── GET /api/admin/users — solo admins ──────────────────────────────
+
+@router.get("/admin/users")
+def list_users(
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    users = db.query(User).all()
+    return [
+        {
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "auth_provider": u.auth_provider,
+            "is_active": u.is_active,
+            "created_at": u.created_at.isoformat(),
+        }
+        for u in users
+    ]
+
+
+# ── PUT /api/admin/users/{id}/role — cambiar rol ─────────────────────
+
+@router.put("/admin/users/{user_id}/role")
+def change_user_role(
+    user_id: str,
+    role: str,
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+):
+    if role not in ("user", "admin"):
+        raise HTTPException(status_code=400, detail="Rol inválido. Usar 'user' o 'admin'")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    user.role = role
+    db.commit()
+    return {"message": f"Rol actualizado a '{role}'", "user_id": user_id}
