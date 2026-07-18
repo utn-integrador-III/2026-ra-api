@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+<<<<<<< HEAD
+=======
+
+.venv/
+__pycache__/
+.env
+.pytest_cache/
+.idea/
+.vscode/
+
+# Firebase Admin service account (secreto — no commitear)
+firebase-service-account.json
+>>>>>>> cddeed2 (Merge pull request #7 from utn-integrador-III/Test-Google-sign-in)
