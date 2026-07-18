@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🗺️ PathAR — Backend API
 
 Backend desarrollado con **FastAPI + PostgreSQL** para el sistema inteligente de navegación peatonal asistida con AR e IA.
@@ -270,3 +271,6 @@ feature/favorites     → Tabla y CRUD completo de favoritos
 feature/admin         → Panel de administración y roles
 feature/alerts        → Sistema de alertas en tiempo real
 ```
+=======
+# 2026-ra-api
+>>>>>>> parent of 5dfa41f (Merge pull request #3 from utn-integrador-III/main)
