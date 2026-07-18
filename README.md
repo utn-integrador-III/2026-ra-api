@@ -15,7 +15,7 @@ Backend desarrollado con **FastAPI + PostgreSQL** para el sistema inteligente de
 | psycopg2 | 2.9.9 | Driver PostgreSQL |
 | python-jose | 3.3.0 | JWT tokens |
 | passlib | 1.7.4 | Hashing |
-| google-auth | 2.29.0 | Verificación Google OAuth |
+| firebase-admin | 6.7.0 | Verificación de Firebase ID Token (Google Sign-In) |
 | httpx | 0.27.0 | HTTP client async |
 | Uvicorn | 0.29.0 | Servidor ASGI |
 
@@ -61,6 +61,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ## 🔐 Variables de entorno (`.env`)
 
+Copiar `env.example` a `.env` y completar:
+
 ```env
 # Base de datos
 DATABASE_URL=postgresql://pathar_user:pathar_password@localhost:5433/pathar_db
@@ -70,9 +72,24 @@ JWT_SECRET_KEY=tu_clave_super_secreta_aqui
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=60
 
-# Google OAuth (Web Client ID de Firebase Console)
-GOOGLE_CLIENT_ID=732484081824-xxxxxxxx.apps.googleusercontent.com
+# Firebase Admin (verificación de Google Sign-In)
+FIREBASE_CREDENTIALS_PATH=firebase-service-account.json
 ```
+
+> `.env` está en `.gitignore` — cada quien crea el suyo, no se comparte por git.
+
+---
+
+## 🔥 Firebase Admin — necesario para que `/api/auth/google` funcione
+
+El frontend manda un **Firebase ID Token** (no un token OAuth de Google), así que este backend lo verifica con el SDK de **Firebase Admin**, usando una credencial de cuenta de servicio del proyecto `pathar-e3fc0`. Esa credencial es secreta y **no está en el repo** (está en `.gitignore` como `firebase-service-account.json`). Para conseguir la tuya:
+
+1. Pedile a Douglas/Ahian que te agregue como miembro del proyecto Firebase (`pathar-e3fc0`) desde la [consola de Firebase](https://console.firebase.google.com) (⚙️ Configuración del proyecto → Usuarios y permisos).
+2. Ya con acceso: ⚙️ Configuración del proyecto → pestaña **Cuentas de servicio** → botón **Generar nueva clave privada**. Se descarga un `.json`.
+3. Renombralo a `firebase-service-account.json` y colocalo en la raíz de este repo (mismo nivel que `.env`).
+4. Instalar dependencias (`pip install -r requirements.txt`, ya incluye `firebase-admin`) y levantar el servidor normalmente.
+
+> Si el `.venv` te tira `Permission denied` al instalar paquetes, probablemente quedó creado con `sudo` en algún momento. Arreglalo con `sudo chown -R $USER:$USER .venv` (no hace falta `sudo` para el resto de los comandos).
 
 ---
 

@@ -1,8 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from google.oauth2 import id_token as google_id_token
-from google.auth.transport import requests as google_requests
-import httpx
+from firebase_admin import auth as firebase_auth
 
 from app.database.database import get_db
 from app.models.user_model import User
@@ -10,7 +8,7 @@ from app.schemas.auth_schemas import (
     RegisterRequest, LoginRequest, GoogleAuthRequest, AuthResponse, UserOut
 )
 from app.core.security import hash_password, verify_password, create_access_token
-from app.core.config import settings
+from app.core import firebase  # noqa: F401 — inicializa la app de Firebase Admin
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -80,32 +78,19 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 
 # ── POST /api/auth/google ────────────────────────────────────────────
-# Flutter manda el id_token que recibió de Google
-# El backend lo verifica con Google y crea/encuentra al usuario
+# Flutter manda el Firebase ID Token (obtenido tras autenticar con Google
+# a través de Firebase Auth). El backend lo verifica con Firebase Admin.
 
 @router.post("/google", response_model=AuthResponse)
 async def google_auth(body: GoogleAuthRequest, db: Session = Depends(get_db)):
-    # Verificar el Firebase ID Token
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"https://oauth2.googleapis.com/tokeninfo?id_token={body.id_token}"
-            )
-        if response.status_code != 200:
-            raise HTTPException(status_code=401, detail="Token de Firebase inválido")
-        
-        info = response.json()
-        
-        # Verificar que el token es para tu proyecto
-        if info.get("aud") != settings.GOOGLE_CLIENT_ID:
-            raise HTTPException(status_code=401, detail="Token no corresponde a esta app")
-
+        decoded = firebase_auth.verify_id_token(body.id_token)
     except Exception:
         raise HTTPException(status_code=401, detail="Token inválido")
 
-    google_id = info["sub"]
-    email = info["email"]
-    name = info.get("name", email.split("@")[0])
+    google_id = decoded["uid"]
+    email = decoded["email"]
+    name = decoded.get("name", email.split("@")[0])
 
     # Buscar o crear usuario (igual que antes)
     user = db.query(User).filter(User.google_id == google_id).first()

@@ -223,3 +223,6 @@ __pycache__/
 .pytest_cache/
 .idea/
 .vscode/
+
+# Firebase Admin service account (secreto — no commitear)
+firebase-service-account.json

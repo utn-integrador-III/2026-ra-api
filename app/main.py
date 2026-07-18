@@ -1,22 +1,21 @@
-from fastapi import FastAPI 
-from fastapi.middleware.cors import CORSMiddleware 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.database.database import engine, Base
 from app.api.auth_router import router as auth_router
 from app.api.profile_router import router as profile_router
-from app.models.place_history_model import PlaceHistory
 from app.api.history_router import router as history_router
-from app.models.location_model import Location
 from app.api.locations_router import router as locations_router
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
+# Importar modelos para que create_all los detecte
+from app.models import user_model, place_history_model, location_model  # noqa
 
-
-# Crea las tablas automáticamente al iniciar
 try:
     Base.metadata.create_all(bind=engine)
     print("✓ Tablas creadas/verificadas en la BD")
 except Exception as e:
     print(f"⚠ No se pudo conectar a la BD: {e}")
-    print("⚠ El servidor arranca igual, pero los endpoints de BD fallarán")
 
 app = FastAPI(
     title="PathAR API",
@@ -24,7 +23,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS — permite peticiones desde Flutter (ajustar en producción)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,7 +31,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routers
+app.mount("/admin", StaticFiles(directory="app/admin", html=True), name="admin")
+
 app.include_router(auth_router)
 app.include_router(profile_router)
 app.include_router(history_router)
