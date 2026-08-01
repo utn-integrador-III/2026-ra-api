@@ -1,0 +1,154 @@
+
+ PathAR API — Cómo levantar el backend en tu PC y compartirlo por túnel
+
+Hola Pablo, 👌 TOME TOME TOME TOME TOME TOME! Esto es para que corras el backend de PathAR en tu compu
+(la de la GPU) y nosotros nos podamos conectar desde acá para seguir
+probando la app sin depender de la máquina de Ahian Bv.
+
+Ahora mismo el backend NO usa la GPU para nada (todavía no hay modelos
+de IA corriendo, eso viene después con YOLO). Por ahora es un backend
+normal de Python/FastAPI + PostgreSQL.
+
+
+------------------------------------------------------------------------
+PARTE 1 — Bajar el proyecto e instalar dependencias
+------------------------------------------------------------------------
+
+1. Necesitás instalado:
+   - Python 3.12 (https://www.python.org/downloads/)
+   - PostgreSQL 16 (https://www.postgresql.org/download/)
+   - Git (https://git-scm.com/downloads)
+
+2. Cloná el repo:
+
+   git clone https://github.com/utn-integrador-III/2026-ra-api.git
+   cd 2026-ra-api
+   git checkout Dev-Ahian
+
+   (confirmá con Ahian cuál es la rama activa en ese momento, puede
+   que ya no sea Dev-Ahian para cuando leas esto)
+
+3. Creá el entorno virtual e instalá las dependencias:
+
+   Windows:
+     python -m venv .venv
+     .venv\Scripts\activate
+     pip install -r requirements.txt
+
+   Linux / Mac / WSL:
+     python3 -m venv .venv
+     source .venv/bin/activate
+     pip install -r requirements.txt
+
+
+------------------------------------------------------------------------
+PARTE 2 — Base de datos
+------------------------------------------------------------------------
+
+1. Con PostgreSQL instalado y corriendo, entrá a psql:
+
+   psql -U postgres
+
+2. Creá la base y el usuario (podés copiar y pegar tal cual):
+
+   CREATE USER pathar_user WITH PASSWORD 'pathar_password';
+   CREATE DATABASE pathar_db OWNER pathar_user;
+   GRANT ALL PRIVILEGES ON DATABASE pathar_db TO pathar_user;
+   \q
+
+
+------------------------------------------------------------------------
+PARTE 3 — Variables de entorno (.env)
+------------------------------------------------------------------------
+
+1. En la raíz del proyecto, copiá env.example a .env
+
+2. Completalo así (ajustá el puerto si tu Postgres no usa el 5432/5433):
+
+   DATABASE_URL=postgresql://pathar_user:pathar_password@localhost:5432/pathar_db
+   JWT_SECRET_KEY=poné-cualquier-texto-largo-y-random-acá
+   JWT_ALGORITHM=HS256
+   JWT_EXPIRE_MINUTES=60
+   FIREBASE_CREDENTIALS_PATH=firebase-service-account.json
+
+3. IMPORTANTE: pedile a Ahian el archivo "firebase-service-account.json"
+   y ponelo en la raíz del proyecto (mismo nivel que .env). Sin ese
+   archivo el servidor NO ARRANCA (falla al iniciar, no es opcional),
+   aunque no vayas a probar el login con Google.
+
+
+------------------------------------------------------------------------
+PARTE 4 — Levantar el servidor
+------------------------------------------------------------------------
+
+Con el entorno virtual activado:
+
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+Si ves "✓ Tablas creadas/verificadas en la BD" y "Application startup
+complete", ya está corriendo. Probalo local primero en:
+
+   http://localhost:8000/admin/
+
+
+------------------------------------------------------------------------
+PARTE 5 — Túnel con ngrok (para que nos conectemos desde afuera)
+------------------------------------------------------------------------
+
+1. Creá una cuenta gratis en https://ngrok.com (con Google/GitHub es rápido)
+
+2. Descargá ngrok para tu sistema operativo desde:
+   https://ngrok.com/download
+
+3. En el dashboard de ngrok (https://dashboard.ngrok.com), copiá tu
+   "authtoken" y configuralo una sola vez:
+
+   ngrok config add-authtoken TU_TOKEN_AQUI
+
+4. Con el backend YA corriendo (Parte 4, dejalo en otra terminal),
+   abrí el túnel:
+
+   ngrok http 8000
+
+5. Te va a mostrar algo como esto:
+
+   Forwarding   https://algo-random-1234.ngrok-free.app -> http://localhost:8000
+
+   Esa URL (la que empieza con https://...ngrok-free.app) es la que
+   nos tenés que pasar por WhatsApp/Discord.
+
+6. Dejá esa terminal de ngrok ABIERTA todo el tiempo que estemos
+   probando — si la cerrás, se corta la conexión. Si la reiniciás,
+   la URL cambia (a menos que tu cuenta de ngrok tenga un dominio
+   fijo gratuito — se puede revisar en el dashboard).
+
+No hace falta que abras puertos en tu router ni toques el firewall de
+Windows — ngrok se conecta hacia afuera solo, así que no hay nada que
+configurar de ese lado.
+
+
+------------------------------------------------------------------------
+PARTE 6 — Qué hacemos nosotros con esa URL
+------------------------------------------------------------------------
+
+Con la URL que nos pases (ej: https://algo-random-1234.ngrok-free.app):
+
+- Panel admin: entramos directo a  <esa-url>/admin/
+- App Flutter: actualizamos el archivo .env del frontend con
+  API_URL=<esa-url>  (sin barra al final)
+
+Si desde la app las respuestas del servidor vienen raras (HTML en vez
+de JSON), puede ser el aviso de "estás por visitar un túnel ngrok" que
+a veces se mete en las respuestas — nos avisás y lo resolvemos
+agregando un header (ngrok-skip-browser-warning) del lado de la app.
+
+
+------------------------------------------------------------------------
+Dudas / algo no prende
+------------------------------------------------------------------------
+
+Mandanos:
+- El error exacto que te tira la terminal al hacer "uvicorn ..."
+- Si es de la base de datos, el error exacto de psql/DATABASE_URL
+
+Y lo vemos. Gracias Pablo!
