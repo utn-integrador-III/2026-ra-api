@@ -231,6 +231,22 @@
     }
     .cancel-btn:hover { background: var(--border); }
 
+    /* ── Modo aceras ── */
+    .mode-btn {
+      width: 100%;
+      padding: 10px;
+      background: var(--gray-light);
+      color: var(--gray);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-btn.active { background: var(--purple); color: white; border-color: var(--purple); }
+    .mode-btn:hover:not(.active) { background: var(--border); }
+
     /* List */
     .list-panel { padding: 12px; overflow-y: auto; flex: 1; }
     .search-bar {
@@ -313,6 +329,52 @@
     }
 
     .loading { opacity: 0.6; pointer-events: none; }
+
+    /* ── Hamburguesa / responsive ── */
+    .hamburger-btn {
+      display: none;
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      width: 38px; height: 38px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .hamburger-btn:hover { background: var(--gray-light); }
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      top: 60px; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 1999;
+    }
+
+    @media (max-width: 820px) {
+      .hamburger-btn { display: flex; }
+      .topbar h1 { font-size: 14px; }
+      .topbar { padding: 0 14px; }
+      .admin-badge { display: none; }
+
+      .layout { position: relative; overflow: hidden; }
+
+      .sidebar {
+        position: fixed;
+        top: 60px; left: 0; bottom: 0;
+        width: 86%;
+        max-width: 340px;
+        z-index: 2000;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.25);
+      }
+      .sidebar.open { transform: translateX(0); }
+
+      .sidebar-backdrop.show { display: block; }
+
+      #map { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -346,6 +408,9 @@
   <!-- Topbar -->
   <div class="topbar">
     <div class="topbar-left">
+      <button class="hamburger-btn" id="hamburger-btn" onclick="toggleSidebar()" aria-label="Menú">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="#6B7280" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+      </button>
       <div class="topbar-logo">
         <svg viewBox="0 0 24 24"><path d="M12 2L8 9H2l5 4-2 7 7-5 7 5-2-7 5-4h-6z"/></svg>
       </div>
@@ -359,94 +424,129 @@
 
   <!-- Layout -->
   <div class="layout">
+    <!-- Fondo oscuro al abrir el menú en mobile -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
     <!-- Sidebar -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <h2>Ubicaciones</h2>
+        <h2 id="sidebar-title">Ubicaciones</h2>
         <span class="count-badge" id="locations-count">0</span>
       </div>
 
-      <!-- Tabs -->
+      <!-- Selector de sección -->
       <div class="tabs">
-        <div class="tab active" id="tab-list" onclick="switchTab('list')">📋 Lista</div>
-        <div class="tab" id="tab-form" onclick="switchTab('form')">➕ Nueva</div>
+        <div class="tab active" id="tab-section-locations" onclick="switchSection('locations')">📍 Ubicaciones</div>
+        <div class="tab" id="tab-section-sidewalks" onclick="switchSection('sidewalks')">🚶 Aceras</div>
       </div>
 
-      <!-- Panel lista -->
-      <div id="panel-list" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
-        <div class="search-bar">
-          <input type="text" placeholder="🔍 Buscar ubicación..." oninput="filterLocations(this.value)" />
+      <!-- ═══════════ SECCIÓN: Ubicaciones (POIs visibles en la app) ═══════════ -->
+      <div id="section-locations" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <div class="tab active" id="tab-list" onclick="switchTab('list')">📋 Lista</div>
+          <div class="tab" id="tab-form" onclick="switchTab('form')">➕ Nueva</div>
         </div>
-        <div class="list-panel" id="locations-list">
-          <div class="empty-state">
-            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-            <p>No hay ubicaciones.<br>Tocá el mapa o usá "Nueva".</p>
+
+        <!-- Panel lista -->
+        <div id="panel-list" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+          <div class="search-bar">
+            <input type="text" placeholder="🔍 Buscar ubicación..." oninput="filterLocations(this.value)" />
+          </div>
+          <div class="list-panel" id="locations-list">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              <p>No hay ubicaciones.<br>Tocá el mapa o usá "Nueva".</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel formulario -->
+        <div id="panel-form" style="display:none; flex:1; overflow:hidden;">
+          <div class="form-panel">
+            <p class="form-title" id="form-title">📍 Nueva ubicación</p>
+
+            <div class="hint">
+              💡 Tocá el mapa para obtener las coordenadas automáticamente, o ingregalas manualmente.
+            </div>
+
+            <input type="hidden" id="edit-id" />
+
+            <div class="field-group">
+              <div class="field-label">Nombre *</div>
+              <input type="text" id="loc-name" placeholder="Ej: Aula 202, Lab de Química..." />
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">Descripción</div>
+              <textarea id="loc-description" placeholder="Descripción opcional..."></textarea>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">Tipo *</div>
+              <select id="loc-type">
+                <option value="classroom">🏫 Aula</option>
+                <option value="lab">🔬 Laboratorio</option>
+                <option value="office">🏢 Oficina</option>
+                <option value="cafeteria">🍽️ Cafetería</option>
+                <option value="bathroom">🚻 Baño</option>
+                <option value="parking">🅿️ Parqueo</option>
+                <option value="library">📚 Biblioteca</option>
+                <option value="auditorium">🎭 Auditorio</option>
+                <option value="gym">🏋️ Gimnasio</option>
+                <option value="other">📌 Otro</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <div class="field-group">
+                <div class="field-label">Edificio</div>
+                <input type="text" id="loc-building" placeholder="Ej: Edificio A" />
+              </div>
+              <div class="field-group">
+                <div class="field-label">Piso</div>
+                <input type="text" id="loc-floor" placeholder="Ej: 2" />
+              </div>
+            </div>
+
+            <div class="coords-row">
+              <div class="field-group">
+                <div class="field-label">Latitud *</div>
+                <input type="number" id="loc-lat" placeholder="9.9333" step="0.000001" />
+              </div>
+              <div class="field-group">
+                <div class="field-label">Longitud *</div>
+                <input type="number" id="loc-lng" placeholder="-84.0833" step="0.000001" />
+              </div>
+            </div>
+
+            <button class="save-btn" onclick="saveLocation()" id="save-btn">💾 Guardar ubicación</button>
+            <button class="cancel-btn" onclick="cancelEdit()">Cancelar</button>
           </div>
         </div>
       </div>
 
-      <!-- Panel formulario -->
-      <div id="panel-form" style="display:none; flex:1; overflow:hidden;">
-        <div class="form-panel">
-          <p class="form-title" id="form-title">📍 Nueva ubicación</p>
-
+      <!-- ═══════════ SECCIÓN: Aceras (grafo caminable, invisible en la app) ═══════════ -->
+      <div id="section-sidewalks" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+        <div class="form-panel" style="flex:none; padding-bottom:8px;">
           <div class="hint">
-            💡 Tocá el mapa para obtener las coordenadas automáticamente, o ingregalas manualmente.
-          </div>
-
-          <input type="hidden" id="edit-id" />
-
-          <div class="field-group">
-            <div class="field-label">Nombre *</div>
-            <input type="text" id="loc-name" placeholder="Ej: Aula 202, Lab de Química..." />
+            🚶 Estos puntos y conexiones son invisibles para la app — solo le dicen al motor de rutas por dónde se puede caminar. Una línea entre dos nodos = "esa acera es caminable".
           </div>
 
           <div class="field-group">
-            <div class="field-label">Descripción</div>
-            <textarea id="loc-description" placeholder="Descripción opcional..."></textarea>
+            <div class="field-label">Modo</div>
           </div>
-
-          <div class="field-group">
-            <div class="field-label">Tipo *</div>
-            <select id="loc-type">
-              <option value="classroom">🏫 Aula</option>
-              <option value="lab">🔬 Laboratorio</option>
-              <option value="office">🏢 Oficina</option>
-              <option value="cafeteria">🍽️ Cafetería</option>
-              <option value="bathroom">🚻 Baño</option>
-              <option value="parking">🅿️ Parqueo</option>
-              <option value="library">📚 Biblioteca</option>
-              <option value="auditorium">🎭 Auditorio</option>
-              <option value="gym">🏋️ Gimnasio</option>
-              <option value="other">📌 Otro</option>
-            </select>
+          <div class="form-row" style="margin-bottom: 10px;">
+            <button class="mode-btn active" id="btn-mode-view" onclick="setSidewalkMode('view')">🖱️ Ver / eliminar</button>
+            <button class="mode-btn" id="btn-mode-add" onclick="setSidewalkMode('add')">➕ Agregar nodo</button>
           </div>
-
-          <div class="form-row">
-            <div class="field-group">
-              <div class="field-label">Edificio</div>
-              <input type="text" id="loc-building" placeholder="Ej: Edificio A" />
-            </div>
-            <div class="field-group">
-              <div class="field-label">Piso</div>
-              <input type="text" id="loc-floor" placeholder="Ej: 2" />
-            </div>
-          </div>
-
-          <div class="coords-row">
-            <div class="field-group">
-              <div class="field-label">Latitud *</div>
-              <input type="number" id="loc-lat" placeholder="9.9333" step="0.000001" />
-            </div>
-            <div class="field-group">
-              <div class="field-label">Longitud *</div>
-              <input type="number" id="loc-lng" placeholder="-84.0833" step="0.000001" />
-            </div>
-          </div>
-
-          <button class="save-btn" onclick="saveLocation()" id="save-btn">💾 Guardar ubicación</button>
-          <button class="cancel-btn" onclick="cancelEdit()">Cancelar</button>
+          <button class="mode-btn" id="btn-mode-connect" onclick="setSidewalkMode('connect')">🔗 Conectar dos nodos</button>
+          <p id="sidewalk-mode-hint" style="font-size:12px; color:var(--gray); margin-top:10px;">
+            Tocá el mapa para eliminar un nodo, o una conexión para borrarla.
+          </p>
         </div>
+        <div class="list-panel" id="sidewalks-list"></div>
       </div>
     </div>
 
@@ -460,7 +560,7 @@
 
 <script>
   // ── CONFIG ───────────────────────────────────────────────────────
-  const API_URL = 'http://localhost:8000'; // ← cambiar por tu IP si es necesario
+  const API_URL = window.location.origin; // se ajusta solo: PC, IP de LAN, o donde sea que abras esta página
 
   // ── ESTADO ───────────────────────────────────────────────────────
   let token = localStorage.getItem('pathar_admin_token') || null;
@@ -470,6 +570,15 @@
   let markers = {};
   let tempMarker = null;
   let editingId = null;
+
+  // ── Aceras (grafo caminable) ────────────────────────────────────────
+  let section = 'locations'; // 'locations' | 'sidewalks'
+  let sidewalkMode = 'view'; // 'view' | 'add' | 'connect'
+  let sidewalkNodes = [];
+  let sidewalkEdges = [];
+  let sidewalkNodeMarkers = {};
+  let sidewalkEdgeLines = {};
+  let connectFirstNodeId = null;
 
   // ── INIT ─────────────────────────────────────────────────────────
   window.onload = () => {
@@ -549,10 +658,23 @@
     // Centro por defecto en Costa Rica
     map = L.map('map').setView([9.7489, -83.7534], 8);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const streetsLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',
       maxZoom: 19,
     }).addTo(map);
+
+    // Vista satelital: para ubicar nodos de acera mirando el pavimento real
+    // en la imagen en vez de depender de la precisión del GPS/WiFi de la PC.
+    const satelliteLayer = L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { attribution: 'Tiles © Esri', maxZoom: 19 }
+    );
+
+    L.control.layers(
+      { '🗺️ Calles': streetsLayer, '🛰️ Satélite': satelliteLayer },
+      {},
+      { position: 'topright', collapsed: false }
+    ).addTo(map);
 
     // Botón de mi ubicación
     const locBtn = L.control({ position: 'topright' });
@@ -572,9 +694,19 @@
     };
     locBtn.addTo(map);
 
-    // Click en mapa → poner pin y llenar coordenadas
+    // Click en mapa → poner pin y llenar coordenadas (o agregar nodo de acera)
     map.on('click', (e) => {
       const { lat, lng } = e.latlng;
+
+      if (section === 'sidewalks') {
+        if (sidewalkMode === 'add') {
+          createSidewalkNode(lat, lng);
+        } else if (sidewalkMode === 'connect') {
+          showToast('En modo "Conectar", tocá dos nodos existentes (no el mapa vacío)');
+        }
+        return;
+      }
+
       placeTemporaryMarker(lat, lng);
       switchTab('form');
       document.getElementById('loc-lat').value = lat.toFixed(7);
@@ -822,6 +954,226 @@
     document.getElementById('tab-form').classList.toggle('active', tab === 'form');
     document.getElementById('panel-list').style.display = tab === 'list' ? 'flex' : 'none';
     document.getElementById('panel-form').style.display = tab === 'form' ? 'block' : 'none';
+    if (tab === 'form') openSidebar(); // en mobile, si tocaste el mapa, mostrá el formulario
+  }
+
+  // ── MENÚ HAMBURGUESA (mobile) ────────────────────────────────────────
+  function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebar-backdrop').classList.add('show');
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-backdrop').classList.remove('show');
+  }
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-backdrop').classList.toggle('show');
+  }
+
+  // ── SECCIÓN: Ubicaciones vs Aceras ──────────────────────────────────
+  function switchSection(s) {
+    section = s;
+    document.getElementById('tab-section-locations').classList.toggle('active', s === 'locations');
+    document.getElementById('tab-section-sidewalks').classList.toggle('active', s === 'sidewalks');
+    document.getElementById('section-locations').style.display = s === 'locations' ? 'flex' : 'none';
+    document.getElementById('section-sidewalks').style.display = s === 'sidewalks' ? 'flex' : 'none';
+    document.getElementById('sidebar-title').textContent = s === 'locations' ? 'Ubicaciones' : 'Aceras';
+    document.getElementById('locations-count').textContent = s === 'locations' ? allLocations.length : (sidewalkNodes.length + sidewalkEdges.length);
+
+    setSidewalkMode('view');
+
+    if (s === 'sidewalks') {
+      loadSidewalks();
+    } else {
+      Object.values(sidewalkNodeMarkers).forEach(m => map.removeLayer(m));
+      Object.values(sidewalkEdgeLines).forEach(l => map.removeLayer(l));
+      sidewalkNodeMarkers = {};
+      sidewalkEdgeLines = {};
+      document.getElementById('locations-count').textContent = allLocations.length;
+    }
+  }
+
+  // ── ACERAS: modos ────────────────────────────────────────────────────
+  const SIDEWALK_MODE_HINTS = {
+    view: 'Tocá un nodo para eliminarlo, o una conexión para borrarla.',
+    add: 'Tocá el mapa para agregar un nodo de acera.',
+    connect: 'Tocá un nodo y después otro para conectarlos (marca "acera caminable").',
+  };
+
+  function setSidewalkMode(mode) {
+    sidewalkMode = mode;
+    clearConnectHighlight();
+    ['view', 'add', 'connect'].forEach(m => {
+      document.getElementById(`btn-mode-${m}`).classList.toggle('active', m === mode);
+    });
+    document.getElementById('sidewalk-mode-hint').textContent = SIDEWALK_MODE_HINTS[mode];
+  }
+
+  // ── ACERAS: cargar y dibujar ─────────────────────────────────────────
+  async function loadSidewalks() {
+    try {
+      const [nodesRes, edgesRes] = await Promise.all([
+        fetch(`${API_URL}/api/sidewalks/nodes`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_URL}/api/sidewalks/edges`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      if (nodesRes.status === 401 || edgesRes.status === 401) { doLogout(); return; }
+      if (!nodesRes.ok || !edgesRes.ok) throw new Error();
+
+      sidewalkNodes = await nodesRes.json();
+      sidewalkEdges = await edgesRes.json();
+      renderSidewalkLayer();
+      renderSidewalksList();
+      document.getElementById('locations-count').textContent = sidewalkNodes.length + sidewalkEdges.length;
+    } catch (e) {
+      showToast('Error cargando aceras. ¿Tu usuario es admin?', 'error');
+    }
+  }
+
+  function renderSidewalkLayer() {
+    Object.values(sidewalkNodeMarkers).forEach(m => map.removeLayer(m));
+    Object.values(sidewalkEdgeLines).forEach(l => map.removeLayer(l));
+    sidewalkNodeMarkers = {};
+    sidewalkEdgeLines = {};
+
+    sidewalkEdges.forEach(edge => {
+      const line = L.polyline(
+        [[edge.node_a.latitude, edge.node_a.longitude], [edge.node_b.latitude, edge.node_b.longitude]],
+        { color: '#6B7280', weight: 4, opacity: 0.8 }
+      ).addTo(map);
+      line.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        if (sidewalkMode !== 'view') return;
+        if (confirm(`¿Eliminar esta conexión (${Math.round(edge.distance_m)} m)?`)) deleteEdge(edge.id);
+      });
+      sidewalkEdgeLines[edge.id] = line;
+    });
+
+    sidewalkNodes.forEach(node => {
+      const marker = L.circleMarker([node.latitude, node.longitude], {
+        radius: 7, color: '#fff', weight: 2, fillColor: '#6B7280', fillOpacity: 1,
+      }).addTo(map);
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        handleNodeClick(node.id);
+      });
+      sidewalkNodeMarkers[node.id] = marker;
+    });
+  }
+
+  function handleNodeClick(nodeId) {
+    if (sidewalkMode === 'connect') {
+      if (!connectFirstNodeId) {
+        connectFirstNodeId = nodeId;
+        highlightNode(nodeId, true);
+        showToast('Nodo seleccionado. Tocá el segundo nodo para conectar.');
+      } else if (connectFirstNodeId === nodeId) {
+        clearConnectHighlight();
+      } else {
+        createEdge(connectFirstNodeId, nodeId);
+      }
+    } else if (sidewalkMode === 'view') {
+      if (confirm('¿Eliminar este nodo? (se borran también sus conexiones)')) deleteNode(nodeId);
+    }
+  }
+
+  function highlightNode(nodeId, on) {
+    const m = sidewalkNodeMarkers[nodeId];
+    if (!m) return;
+    m.setStyle({ fillColor: on ? '#6C3EE8' : '#6B7280', radius: on ? 9 : 7 });
+  }
+
+  function clearConnectHighlight() {
+    if (connectFirstNodeId) highlightNode(connectFirstNodeId, false);
+    connectFirstNodeId = null;
+  }
+
+  // ── ACERAS: CRUD ──────────────────────────────────────────────────────
+  async function createSidewalkNode(lat, lng) {
+    try {
+      const res = await fetch(`${API_URL}/api/sidewalks/nodes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ latitude: lat, longitude: lng }),
+      });
+      if (!res.ok) throw new Error();
+      showToast('✅ Nodo agregado', 'success');
+      loadSidewalks();
+    } catch (e) {
+      showToast('Error agregando nodo', 'error');
+    }
+  }
+
+  async function createEdge(nodeAId, nodeBId) {
+    try {
+      const res = await fetch(`${API_URL}/api/sidewalks/edges`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ node_a_id: nodeAId, node_b_id: nodeBId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error al conectar');
+      }
+      showToast('✅ Conexión creada', 'success');
+      connectFirstNodeId = null;
+      loadSidewalks();
+    } catch (e) {
+      showToast(e.message, 'error');
+      clearConnectHighlight();
+    }
+  }
+
+  async function deleteNode(nodeId) {
+    try {
+      const res = await fetch(`${API_URL}/api/sidewalks/nodes/${nodeId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      showToast('🗑️ Nodo eliminado', 'success');
+      loadSidewalks();
+    } catch (e) {
+      showToast('Error eliminando nodo', 'error');
+    }
+  }
+
+  async function deleteEdge(edgeId) {
+    try {
+      const res = await fetch(`${API_URL}/api/sidewalks/edges/${edgeId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      showToast('🗑️ Conexión eliminada', 'success');
+      loadSidewalks();
+    } catch (e) {
+      showToast('Error eliminando conexión', 'error');
+    }
+  }
+
+  function renderSidewalksList() {
+    const el = document.getElementById('sidewalks-list');
+    let html = `<div style="padding:4px 4px 10px;font-size:12px;color:var(--gray);font-weight:600;">
+      ${sidewalkNodes.length} nodos · ${sidewalkEdges.length} conexiones</div>`;
+
+    if (sidewalkEdges.length === 0) {
+      html += `<div class="empty-state">
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        <p>Todavía no hay conexiones.<br>Agregá al menos 2 nodos y conectalos.</p>
+      </div>`;
+    } else {
+      html += sidewalkEdges.map(e => `
+        <div class="location-item">
+          <div class="item-top">
+            <span class="item-name">🔗 ${Math.round(e.distance_m)} m</span>
+            <button class="btn-danger" onclick="deleteEdge('${e.id}')">🗑️</button>
+          </div>
+          <div class="item-coords">${e.node_a.latitude.toFixed(5)}, ${e.node_a.longitude.toFixed(5)} → ${e.node_b.latitude.toFixed(5)}, ${e.node_b.longitude.toFixed(5)}</div>
+        </div>
+      `).join('');
+    }
+    el.innerHTML = html;
   }
 
   // ── HELPERS ───────────────────────────────────────────────────────
@@ -851,45 +1203,71 @@
   }
 
   // ── MI UBICACIÓN ──────────────────────────────────────────────────
+  // Una PC no tiene GPS: el navegador solo puede triangular por WiFi/red,
+  // así que en vez de confiar en la primera lectura, escuchamos varias
+  // muestras durante unos segundos y nos quedamos con la más precisa.
   let myLocationMarker = null;
+  let myAccuracyCircle = null;
+  let geoWatchId = null;
 
   function goToMyLocation() {
     if (!navigator.geolocation) {
       showToast('Tu navegador no soporta geolocalización', 'error');
       return;
     }
-    showToast('Obteniendo ubicación...');
-    navigator.geolocation.getCurrentPosition(
+    if (geoWatchId !== null) navigator.geolocation.clearWatch(geoWatchId);
+
+    showToast('Afinando ubicación (unos segundos)...');
+    let best = null;
+    const GOOD_ENOUGH_M = 15;
+
+    const finish = (pos) => {
+      if (geoWatchId !== null) { navigator.geolocation.clearWatch(geoWatchId); geoWatchId = null; }
+      const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+      map.setView([lat, lng], 19);
+
+      if (myLocationMarker) map.removeLayer(myLocationMarker);
+      if (myAccuracyCircle) map.removeLayer(myAccuracyCircle);
+
+      myAccuracyCircle = L.circle([lat, lng], {
+        radius: accuracy, color: '#22C55E', fillColor: '#22C55E', fillOpacity: 0.12, weight: 1,
+      }).addTo(map);
+
+      myLocationMarker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="
+            width:20px;height:20px;background:#22C55E;border-radius:50%;
+            border:3px solid white;box-shadow:0 0 0 4px rgba(34,197,94,0.3);
+          "></div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10],
+        })
+      }).addTo(map).bindPopup(`📍 Tu ubicación (±${Math.round(accuracy)} m)`).openPopup();
+
+      // Llenar coordenadas en el formulario y cambiar a tab Nueva
+      placeTemporaryMarker(lat, lng);
+      switchTab('form');
+      document.getElementById('loc-lat').value = lat.toFixed(7);
+      document.getElementById('loc-lng').value = lng.toFixed(7);
+
+      showToast(`✅ Ubicación cargada (precisión ±${Math.round(accuracy)} m)`, accuracy <= GOOD_ENOUGH_M ? 'success' : 'error');
+    };
+
+    geoWatchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        map.setView([lat, lng], 19);
-
-        if (myLocationMarker) map.removeLayer(myLocationMarker);
-        myLocationMarker = L.marker([lat, lng], {
-          icon: L.divIcon({
-            className: '',
-            html: `<div style="
-              width:20px;height:20px;background:#22C55E;border-radius:50%;
-              border:3px solid white;box-shadow:0 0 0 4px rgba(34,197,94,0.3);
-            "></div>`,
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-          })
-        }).addTo(map).bindPopup('📍 Tu ubicación actual').openPopup();
-
-        // Llenar coordenadas en el formulario y cambiar a tab Nueva
-        placeTemporaryMarker(lat, lng);
-        switchTab('form');
-        document.getElementById('loc-lat').value = lat.toFixed(7);
-        document.getElementById('loc-lng').value = lng.toFixed(7);
-
-        showToast('✅ Coordenadas cargadas en el formulario', 'success');
+        if (!best || pos.coords.accuracy < best.coords.accuracy) best = pos;
+        if (pos.coords.accuracy <= GOOD_ENOUGH_M) finish(pos);
       },
       (err) => {
+        if (geoWatchId !== null) { navigator.geolocation.clearWatch(geoWatchId); geoWatchId = null; }
         showToast('No se pudo obtener la ubicación. Verificá los permisos del navegador.', 'error');
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
+
+    // Si a los 8s no hay una lectura "suficientemente buena", usamos la mejor que haya llegado
+    setTimeout(() => { if (best && geoWatchId !== null) finish(best); }, 8000);
   }
 
   function showError(el, msg) {
