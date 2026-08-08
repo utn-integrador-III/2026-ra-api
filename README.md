@@ -84,7 +84,7 @@ FIREBASE_CREDENTIALS_PATH=firebase-service-account.json
 
 El frontend manda un **Firebase ID Token** (no un token OAuth de Google), así que este backend lo verifica con el SDK de **Firebase Admin**, usando una credencial de cuenta de servicio del proyecto `pathar-e3fc0`. Esa credencial es secreta y **no está en el repo** (está en `.gitignore` como `firebase-service-account.json`). Para conseguir la tuya:
 
-1. Pedile a Douglas/Ahian que te agregue como miembro del proyecto Firebase (`pathar-e3fc0`) desde la [consola de Firebase](https://console.firebase.google.com) (⚙️ Configuración del proyecto → Usuarios y permisos).
+1. Pedile a Ahian que te agregue como miembro del proyecto Firebase (`pathar-e3fc0`) desde la [consola de Firebase](https://console.firebase.google.com) (⚙️ Configuración del proyecto → Usuarios y permisos).
 2. Ya con acceso: ⚙️ Configuración del proyecto → pestaña **Cuentas de servicio** → botón **Generar nueva clave privada**. Se descarga un `.json`.
 3. Renombralo a `firebase-service-account.json` y colocalo en la raíz de este repo (mismo nivel que `.env`).
 4. Instalar dependencias (`pip install -r requirements.txt`, ya incluye `firebase-admin`) y levantar el servidor normalmente.
