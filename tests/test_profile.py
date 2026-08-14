@@ -10,17 +10,48 @@ def test_get_and_update_profile(client, register_user):
     assert r2.json()["name"] == "Nombre Nuevo"
 
 
-def test_favorites_stub_endpoints(client, register_user):
-    headers, _, _ = register_user(prefix="fav")
+def test_favorites_empty_by_default(client, register_user):
+    headers, _, _ = register_user(prefix="favempty")
     assert client.get("/api/favorites", headers=headers).json() == {"favorites": [], "total": 0}
+
+
+def test_add_list_and_delete_favorite(client, register_user):
+    headers, _, _ = register_user(prefix="fav")
 
     r = client.post("/api/favorites", json={
         "name": "Biblioteca", "address": "Edificio A", "latitude": 9.93, "longitude": -84.08,
     }, headers=headers)
     assert r.status_code == 201
+    fav_id = r.json()["id"]
 
-    r2 = client.delete("/api/favorites/algun-id", headers=headers)
+    listed = client.get("/api/favorites", headers=headers).json()
+    assert listed["total"] == 1
+    assert listed["favorites"][0]["name"] == "Biblioteca"
+
+    r2 = client.delete(f"/api/favorites/{fav_id}", headers=headers)
     assert r2.status_code == 200
+
+    after = client.get("/api/favorites", headers=headers).json()
+    assert after["total"] == 0
+
+
+def test_delete_unknown_favorite_404(client, register_user):
+    headers, _, _ = register_user(prefix="favmissing")
+    r = client.delete("/api/favorites/no-existe", headers=headers)
+    assert r.status_code == 404
+
+
+def test_cannot_delete_another_users_favorite(client, register_user):
+    headers_a, _, _ = register_user(prefix="favowner")
+    headers_b, _, _ = register_user(prefix="favintruder")
+
+    r = client.post("/api/favorites", json={
+        "name": "Cafeteria", "latitude": 9.93, "longitude": -84.08,
+    }, headers=headers_a)
+    fav_id = r.json()["id"]
+
+    r2 = client.delete(f"/api/favorites/{fav_id}", headers=headers_b)
+    assert r2.status_code == 404
 
 
 def test_history_routes_stub(client, register_user):

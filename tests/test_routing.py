@@ -88,3 +88,20 @@ def test_route_generates_turn_instruction(client, admin_headers, register_user):
     turns = [s["turn"] for s in steps if s["turn"] in ("left", "right")]
     assert turns, f"se esperaba al menos un giro anunciado, steps={steps}"
     assert turns[0] == "right"
+
+
+def test_route_duration_uses_user_walking_speed_preference(client, admin_headers, register_user):
+    a = (10.0800, -84.5800)
+    b = (10.0800, -84.5790)
+
+    a_id = _make_node(client, admin_headers, *a)
+    b_id = _make_node(client, admin_headers, *b)
+    _make_edge(client, admin_headers, a_id, b_id)
+
+    user_headers, _, _ = register_user(prefix="speedpref")
+    client.put("/api/preferences", json={"walking_speed_mps": 2.6}, headers=user_headers)
+
+    r = _request_route(client, user_headers, a, b)
+    assert r.status_code == 201, r.text
+    data = r.json()
+    assert data["duration_s"] == round(data["distance_m"] / 2.6)

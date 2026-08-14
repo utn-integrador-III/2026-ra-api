@@ -5,6 +5,7 @@ from typing import Optional
 
 from app.database.database import get_db
 from app.models.user_model import User
+from app.models.favorite_model import Favorite
 from app.core.security import decode_access_token
 from app.schemas.auth_schemas import UserOut
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -61,15 +62,24 @@ class UpdateProfileRequest(BaseModel):
 
 class AddFavoriteRequest(BaseModel):
     name: str
-    address: str
+    address: Optional[str] = None
     latitude: float
     longitude: float
+
+class FavoriteOut(BaseModel):
+    id: str
+    name: str
+    address: Optional[str]
+    latitude: float
+    longitude: float
+    model_config = {"from_attributes": True}
 
 
 # ── GET /api/auth/profile ────────────────────────────────────────────
 
 @router.get("/auth/profile", response_model=ProfileResponse)
-def get_profile(current_user: User = Depends(get_current_user)):
+def get_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    favorites_count = db.query(Favorite).filter(Favorite.user_id == current_user.id).count()
     return ProfileResponse(
         id=current_user.id,
         name=current_user.name,
@@ -77,7 +87,7 @@ def get_profile(current_user: User = Depends(get_current_user)):
         auth_provider=current_user.auth_provider,
         role=current_user.role,
         badge="Admin" if current_user.role == "admin" else "Explorer",
-        stats=ProfileStats(routes=0, favorites=0, avg_km=0.0),
+        stats=ProfileStats(routes=0, favorites=favorites_count, avg_km=0.0),
     )
 
 
@@ -106,21 +116,50 @@ def get_routes_history(current_user: User = Depends(get_current_user)):
 # ── GET /api/favorites ───────────────────────────────────────────────
 
 @router.get("/favorites")
-def get_favorites(current_user: User = Depends(get_current_user)):
-    return {"favorites": [], "total": 0}
+def get_favorites(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    favorites = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
+    return {
+        "favorites": [FavoriteOut.model_validate(f).model_dump() for f in favorites],
+        "total": len(favorites),
+    }
 
 
 # ── POST /api/favorites ──────────────────────────────────────────────
 
-@router.post("/favorites", status_code=status.HTTP_201_CREATED)
-def add_favorite(body: AddFavoriteRequest, current_user: User = Depends(get_current_user)):
-    return {"message": "Favorito agregado", "name": body.name}
+@router.post("/favorites", response_model=FavoriteOut, status_code=status.HTTP_201_CREATED)
+def add_favorite(
+    body: AddFavoriteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    favorite = Favorite(
+        user_id=current_user.id,
+        name=body.name,
+        address=body.address,
+        latitude=body.latitude,
+        longitude=body.longitude,
+    )
+    db.add(favorite)
+    db.commit()
+    db.refresh(favorite)
+    return favorite
 
 
 # ── DELETE /api/favorites/{id} ───────────────────────────────────────
 
 @router.delete("/favorites/{favorite_id}")
-def delete_favorite(favorite_id: str, current_user: User = Depends(get_current_user)):
+def delete_favorite(
+    favorite_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    favorite = db.query(Favorite).filter(
+        Favorite.id == favorite_id, Favorite.user_id == current_user.id
+    ).first()
+    if not favorite:
+        raise HTTPException(status_code=404, detail="Favorito no encontrado")
+    db.delete(favorite)
+    db.commit()
     return {"message": "Favorito eliminado"}
 
 
