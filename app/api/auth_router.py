@@ -85,7 +85,8 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 async def google_auth(body: GoogleAuthRequest, db: Session = Depends(get_db)):
     try:
         decoded = firebase_auth.verify_id_token(body.id_token)
-    except Exception:
+    except Exception as e:
+        print(f"✗ verify_id_token falló: {type(e).__name__}: {e}")
         raise HTTPException(status_code=401, detail="Token inválido")
 
     google_id = decoded["uid"]
