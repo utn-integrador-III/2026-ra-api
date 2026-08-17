@@ -57,6 +57,11 @@ GRANT ALL PRIVILEGES ON DATABASE pathar_db TO pathar_user;
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
+> 📘 **¿Recién te sumás al equipo?** Esta sección asume que ya sabés manejarte
+> con WSL/Ubuntu. Si es tu primera vez, seguí [`GUIA_PARA_CHOFI.md`](GUIA_PARA_CHOFI.md) —
+> instala WSL desde cero, arma el backend y el frontend, crea tu usuario admin
+> y explica cómo cargar destinos/aceras para poder probar la app de verdad.
+
 ---
 
 ## 🔐 Variables de entorno (`.env`)
@@ -65,7 +70,7 @@ Copiar `env.example` a `.env` y completar:
 
 ```env
 # Base de datos
-DATABASE_URL=postgresql://pathar_user:pathar_password@localhost:5433/pathar_db
+DATABASE_URL=postgresql://pathar_user:pathar_password@localhost:5432/pathar_db
 
 # JWT
 JWT_SECRET_KEY=tu_clave_super_secreta_aqui
