@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(wsl.exe -e bash -lc \"rm -rf /tmp/_pathar_ci_check && python3 -m venv /tmp/_pathar_ci_check && /tmp/_pathar_ci_check/bin/pip install -q -r /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api/requirements.txt 2>&1 | tail -20 && echo INSTALL_OK\")",
+      "PowerShell(wsl.exe -e bash -lc \"/tmp/_pathar_ci_check/bin/pip install -r /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api/requirements.txt 2>&1 | grep -A 5 -B 20 'ResolutionImpossible'\")",
+      "PowerShell(wsl.exe -e bash -lc \"/tmp/_pathar_ci_check/bin/pip install -q -r /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api/requirements.txt 2>&1 | tail -30 && echo INSTALL_OK\")",
+      "PowerShell(wsl.exe -e bash -lc \"cd /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api && /tmp/_pathar_ci_check/bin/python -m pytest -v 2>&1 | tail -80\")",
+      "PowerShell(wsl.exe -e bash -lc \"cd /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api && /tmp/_pathar_ci_check/bin/python -m pytest -v 2>&1 | tail -100\")",
+      "PowerShell(wsl.exe -e bash -lc \"cd /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api && /tmp/_pathar_ci_check/bin/python -m pytest -v 2>&1 | tail -30\")",
+      "Bash(flutter --version)",
+      "Bash(flutter test *)",
+      "PowerShell(wsl.exe -e bash -lc \"cd /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api && /tmp/_pathar_ci_check/bin/python -m pytest -v 2>&1 | tail -25\")",
+      "PowerShell(wsl.exe -e bash -lc \"/tmp/_pathar_ci_check/bin/pip install -q pytest-cov && cd /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api && /tmp/_pathar_ci_check/bin/python -m pytest --cov=app --cov-report=term-missing -q 2>&1 | tail -60\")",
+      "PowerShell(wsl.exe -e bash -lc \"cd /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api && /tmp/_pathar_ci_check/bin/python -m pytest --cov=app --cov-report=term-missing -q 2>&1 | tail -70\")",
+      "PowerShell(wsl.exe -e bash -lc \"cd /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api && /tmp/_pathar_ci_check/bin/python -m pytest --cov=app --cov-report=term-missing -q 2>&1 | tail -35\")",
+      "PowerShell(wsl.exe -e bash -lc \"cd /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api && /tmp/_pathar_ci_check/bin/python -m pytest --cov=app --cov-report=term-missing -q 2>&1 | tail -30\")",
+      "PowerShell(wsl.exe -e bash -lc \"cd /mnt/c/Users/quesa/Documents/GitHub/2026-ra-api && /tmp/_pathar_ci_check/bin/python -m pytest -v --cov=app --cov-report=term-missing --cov-fail-under=80 2>&1 | tail -15\")"
+    ]
+  }
+}
