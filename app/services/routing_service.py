@@ -196,7 +196,10 @@ def _build_steps(points: list) -> list:
     return steps
 
 
-def compute_route(db: Session, origin_lat: float, origin_lng: float, dest_lat: float, dest_lng: float) -> RouteResult:
+def compute_route(
+    db: Session, origin_lat: float, origin_lng: float, dest_lat: float, dest_lng: float,
+    walking_speed_mps: float = WALKING_SPEED_MPS,
+) -> RouteResult:
     nodes, edges, adjacency = _build_graph(db)
 
     if not nodes or not edges:
@@ -254,5 +257,5 @@ def compute_route(db: Session, origin_lat: float, origin_lng: float, dest_lat: f
         points=points,
         steps=steps,
         distance_m=round(total_distance, 1),
-        duration_s=round(total_distance / WALKING_SPEED_MPS),
+        duration_s=round(total_distance / walking_speed_mps),
     )
