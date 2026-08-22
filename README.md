@@ -105,7 +105,8 @@ app/
 │   ├── history_router.py     # Historial de lugares
 │   ├── locations_router.py   # CRUD ubicaciones universitarias
 │   ├── sidewalks_router.py   # CRUD nodos/aristas de acera (admin-only)
-│   └── navigation_router.py  # Cálculo/ciclo de vida de rutas
+│   ├── navigation_router.py  # Cálculo/ciclo de vida de rutas
+│   └── preferences_router.py # Preferencias del usuario (voz, velocidad)
 ├── core/
 │   ├── config.py             # Carga de .env
 │   ├── security.py           # SHA256, JWT
@@ -117,7 +118,9 @@ app/
 │   ├── place_history_model.py    # Tabla place_history
 │   ├── location_model.py         # Tabla locations
 │   ├── sidewalk_model.py         # Tablas sidewalk_nodes / sidewalk_edges
-│   └── navigation_route_model.py # Tabla navigation_routes
+│   ├── navigation_route_model.py # Tabla navigation_routes
+│   ├── favorite_model.py         # Tabla favorites
+│   └── user_preference_model.py  # Tabla user_preferences
 ├── schemas/
 │   └── auth_schemas.py       # Schemas Pydantic
 ├── services/
@@ -162,18 +165,23 @@ tests/                        # pytest (BD sqlite aislada, ver Pruebas más abaj
 | `POST` | `/api/history/places` | ✅ JWT | Guardar lugar visitado/buscado | ✅ Listo |
 | `GET` | `/api/history/places` | ✅ JWT | Obtener últimos 10 lugares | ✅ Listo |
 | `DELETE` | `/api/history/places` | ✅ JWT | Limpiar historial | ✅ Listo |
-| `GET` | `/api/history/routes` | ✅ JWT | Historial de rutas navegadas | ⏳ Pendiente |
+| `GET` | `/api/history/routes` | ✅ JWT | Historial de rutas navegadas (ver `/api/navigation/history`) | ✅ Listo (stub, siempre vacío) |
 | `GET` | `/api/history/searches` | ✅ JWT | Historial de búsquedas | ⏳ Pendiente |
 
 ### ❤️ Favoritos — `/api/favorites`
 
 | Método | Endpoint | Auth | Descripción | Estado |
 |---|---|---|---|---|
-| `GET` | `/api/favorites` | ✅ JWT | Listar favoritos del usuario | ✅ Listo (vacío) |
-| `POST` | `/api/favorites` | ✅ JWT | Agregar favorito | ✅ Listo (stub) |
-| `DELETE` | `/api/favorites/{id}` | ✅ JWT | Eliminar favorito | ✅ Listo (stub) |
+| `GET` | `/api/favorites` | ✅ JWT | Listar favoritos del usuario | ✅ Listo |
+| `POST` | `/api/favorites` | ✅ JWT | Agregar favorito | ✅ Listo |
+| `DELETE` | `/api/favorites/{id}` | ✅ JWT | Eliminar favorito (solo el dueño) | ✅ Listo |
 
-> ⚠️ Los favoritos retornan vacío por ahora — falta tabla `favorites` en BD.
+### ⚙️ Preferencias — `/api/preferences`
+
+| Método | Endpoint | Auth | Descripción | Estado |
+|---|---|---|---|---|
+| `GET` | `/api/preferences` | ✅ JWT | Obtener preferencias (crea defaults si no existen) | ✅ Listo |
+| `PUT` | `/api/preferences` | ✅ JWT | Actualizar preferencias (guía por voz, velocidad de caminata) | ✅ Listo |
 
 ### 🏫 Ubicaciones universitarias — `/api/locations`
 
@@ -333,6 +341,21 @@ navigation_routes
 ├── steps (JSON — instrucciones de giro)
 ├── status ('calculated' | 'active' | 'finished')
 ├── created_at / started_at / finished_at
+
+favorites
+├── id (UUID, PK)
+├── user_id (FK → users)
+├── name
+├── address
+├── latitude / longitude
+└── created_at
+
+user_preferences
+├── id (UUID, PK)
+├── user_id (FK → users, único)
+├── voice_guidance_enabled (default true)
+├── walking_speed_mps (default 1.3)
+└── updated_at
 ```
 
 ---
@@ -355,7 +378,8 @@ pytest -v
 Corren contra una base SQLite descartable (no tocan tu Postgres real) y
 contra una credencial de Firebase falsa generada al vuelo — no necesitás
 tener `.env` ni `firebase-service-account.json` configurados para correrlas.
-Cubren autenticación, CRUD de aceras (con control de rol admin) y el motor
+Cubren autenticación, perfil y favoritos, preferencias, historial de
+lugares, ubicaciones, CRUD de aceras (con control de rol admin) y el motor
 de rutas (estabilidad del snapping, ruta directa en el mismo tramo, giros).
 
 Se corren automáticamente en GitHub Actions en cada push/PR — ver
@@ -376,10 +400,11 @@ Con el servidor corriendo:
 ```
 feature/yolo          → Detección de obstáculos en tiempo real (on-device, TFLite)
 feature/segformer     → Segmentación de aceras desde la cámara (on-device)
-feature/favorites     → Tabla real de favoritos (hoy los endpoints existen pero son stub)
 feature/alerts        → Sistema de alertas en tiempo real
+feature/search-history → Historial real de búsquedas (`/api/history/searches`)
 ```
 
 Ya no están en esta lista porque ya están implementados: cálculo de rutas
 peatonales (`/api/navigation`), grafo de aceras (`/api/sidewalks`), panel de
-administración con roles (`/admin` + `/api/admin/users`).
+administración con roles (`/admin` + `/api/admin/users`), favoritos con
+tabla real (`/api/favorites`) y preferencias de usuario (`/api/preferences`).
