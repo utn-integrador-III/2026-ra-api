@@ -6,7 +6,7 @@ Seguí los pasos en orden, no te saltes ninguno.
 
 ---
 
-## Parte 1 — Instalar WSL con Ubuntu
+## Parte 1 — Instalar WSL con Ubuntu (YA TIENES UBUNTU, SALTA ESTE PASO)
 
 El backend corre en Linux, así que primero necesitás "Linux dentro de Windows"
 (se llama WSL). Si ya lo tenés instalado, saltate a la Parte 2.
@@ -33,7 +33,6 @@ Todo esto es **dentro de la ventana de Ubuntu**, no en PowerShell.
 
 1. Cloná el repo (poné tu propia carpeta si querés, esto es un ejemplo):
    ```
-   cd ~
    git clone https://github.com/utn-integrador-III/2026-ra-api.git
    cd 2026-ra-api
    ```
@@ -54,8 +53,7 @@ Todo esto es **dentro de la ventana de Ubuntu**, no en PowerShell.
 
 4. **El login con Google no va a funcionar todavía** — para eso hace falta un
    archivo con credenciales que no se sube a GitHub por seguridad
-   (`firebase-service-account.json`). Pedile ese archivo por privado (Discord,
-   WhatsApp, lo que sea — **nunca lo subas a GitHub**) a algún compañero, y
+   (`firebase-service-account.json`). Pedile ese archivo por privado (**TE LO PASARÉ POR WHATSAPP**) a algún compañero, y
    ponelo en la raíz del proyecto, junto al `.env`:
    ```
    ~/2026-ra-api/firebase-service-account.json
