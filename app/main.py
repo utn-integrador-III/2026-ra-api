@@ -7,6 +7,7 @@ from app.api.history_router import router as history_router
 from app.api.locations_router import router as locations_router
 from app.api.sidewalks_router import router as sidewalks_router
 from app.api.navigation_router import router as navigation_router
+from app.api.preferences_router import router as preferences_router
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
@@ -17,6 +18,8 @@ from app.models import (  # noqa
     location_model,
     sidewalk_model,
     navigation_route_model,
+    favorite_model,
+    user_preference_model,
 )
 
 try:
@@ -47,6 +50,7 @@ app.include_router(history_router)
 app.include_router(locations_router)
 app.include_router(sidewalks_router)
 app.include_router(navigation_router)
+app.include_router(preferences_router)
 
 @app.get("/")
 def root():

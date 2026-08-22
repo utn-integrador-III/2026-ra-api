@@ -9,15 +9,15 @@ Backend desarrollado con **FastAPI + PostgreSQL** para el sistema inteligente de
 | Tecnología | Versión | Uso |
 |---|---|---|
 | Python | 3.12 | Lenguaje base |
-| FastAPI | 0.111.0 | Framework API REST |
+| FastAPI | 0.136.3 | Framework API REST |
 | PostgreSQL | 16 | Base de datos |
-| SQLAlchemy | 2.0.30 | ORM |
-| psycopg2 | 2.9.9 | Driver PostgreSQL |
+| SQLAlchemy | 2.0.50 | ORM |
+| psycopg2-binary | 2.9.12 | Driver PostgreSQL |
+| Pydantic / pydantic-settings | 2.13.4 / 2.14.2 | Validación y config desde `.env` |
 | python-jose | 3.3.0 | JWT tokens |
-| passlib | 1.7.4 | Hashing |
-| firebase-admin | 6.7.0 | Verificación de Firebase ID Token (Google Sign-In) |
-| httpx | 0.27.0 | HTTP client async |
-| Uvicorn | 0.29.0 | Servidor ASGI |
+| firebase-admin | 7.5.0 | Verificación de Firebase ID Token (Google Sign-In) |
+| Uvicorn | 0.49.0 | Servidor ASGI |
+| pytest / httpx | 8.4.2 / 0.28.1 | Pruebas automatizadas (`TestClient`) |
 
 ---
 
@@ -65,7 +65,7 @@ Copiar `env.example` a `.env` y completar:
 
 ```env
 # Base de datos
-DATABASE_URL=postgresql://pathar_user:pathar_password@localhost:5433/pathar_db
+DATABASE_URL=postgresql://pathar_user:pathar_password@localhost:5432/pathar_db
 
 # JWT
 JWT_SECRET_KEY=tu_clave_super_secreta_aqui
@@ -97,23 +97,36 @@ El frontend manda un **Firebase ID Token** (no un token OAuth de Google), así q
 
 ```
 app/
+├── admin/
+│   └── index.html            # Panel admin (ubicaciones + aceras), estático
 ├── api/
 │   ├── auth_router.py        # Registro, login, Google OAuth
-│   ├── profile_router.py     # Perfil, favoritos
+│   ├── profile_router.py     # Perfil, favoritos, admin/users
 │   ├── history_router.py     # Historial de lugares
-│   └── locations_router.py   # CRUD ubicaciones universitarias
+│   ├── locations_router.py   # CRUD ubicaciones universitarias
+│   ├── sidewalks_router.py   # CRUD nodos/aristas de acera (admin-only)
+│   └── navigation_router.py  # Cálculo/ciclo de vida de rutas
 ├── core/
 │   ├── config.py             # Carga de .env
-│   └── security.py           # SHA256, JWT
+│   ├── security.py           # SHA256, JWT
+│   └── firebase.py           # Init de Firebase Admin
 ├── database/
 │   └── database.py           # Conexión SQLAlchemy
 ├── models/
-│   ├── user_model.py         # Tabla users
-│   ├── place_history_model.py # Tabla place_history
-│   └── location_model.py     # Tabla locations
+│   ├── user_model.py             # Tabla users
+│   ├── place_history_model.py    # Tabla place_history
+│   ├── location_model.py         # Tabla locations
+│   ├── sidewalk_model.py         # Tablas sidewalk_nodes / sidewalk_edges
+│   └── navigation_route_model.py # Tabla navigation_routes
 ├── schemas/
 │   └── auth_schemas.py       # Schemas Pydantic
+├── services/
+│   └── routing_service.py    # Dijkstra + snapping por arista + giros
+├── utils/
+│   └── geo.py                # Haversine, bearing, ángulo de giro
 └── main.py                   # Punto de entrada, registro de routers
+
+tests/                        # pytest (BD sqlite aislada, ver Pruebas más abajo)
 ```
 
 ---
@@ -173,15 +186,49 @@ app/
 | `PUT` | `/api/locations/{id}` | ✅ JWT | Editar ubicación | ✅ Listo |
 | `DELETE` | `/api/locations/{id}` | ✅ JWT | Desactivar ubicación (soft delete) | ✅ Listo |
 
-### 🧭 Navegación — `/api/navigation`
+### 🧭 Navegación — `/api/navigation` (FR-08 a FR-13)
+
+Ruteo real sobre el grafo de aceras (Dijkstra + snapping por arista), no una
+línea recta al destino. Ver sección de Aceras más abajo para cómo se arma
+ese grafo.
 
 | Método | Endpoint | Auth | Descripción | Estado |
 |---|---|---|---|---|
-| `POST` | `/api/navigation/route` | ✅ JWT | Calcular ruta | ⏳ Pendiente |
-| `POST` | `/api/navigation/start` | ✅ JWT | Iniciar navegación | ⏳ Pendiente |
-| `POST` | `/api/navigation/finish` | ✅ JWT | Finalizar navegación | ⏳ Pendiente |
-| `POST` | `/api/navigation/recalculate` | ✅ JWT | Recalcular ruta | ⏳ Pendiente |
-| `GET` | `/api/navigation/history` | ✅ JWT | Historial de rutas | ⏳ Pendiente |
+| `POST` | `/api/navigation/route` | ✅ JWT | Calcular ruta (distancia, puntos, instrucciones de giro) | ✅ Listo |
+| `POST` | `/api/navigation/recalculate` | ✅ JWT | Recalcular una ruta activa desde la posición actual | ✅ Listo |
+| `POST` | `/api/navigation/start` | ✅ JWT | Marcar una ruta como iniciada | ✅ Listo |
+| `POST` | `/api/navigation/finish` | ✅ JWT | Marcar una ruta como finalizada | ✅ Listo |
+| `GET` | `/api/navigation/history` | ✅ JWT | Últimas 20 rutas del usuario | ✅ Listo |
+| `GET` | `/api/navigation/{id}` | ✅ JWT | Obtener una ruta puntual | ✅ Listo |
+| `DELETE` | `/api/navigation/{id}` | ✅ JWT | Borrar una ruta del historial | ✅ Listo |
+
+### 🚶 Aceras (grafo peatonal) — `/api/sidewalks`
+
+Puntos y conexiones invisibles para la app de usuarios finales — solo los
+usa el panel admin (para dibujarlos/editarlos) y el motor de rutas de arriba
+(para saber por dónde se puede caminar). Viven en tablas separadas de
+`locations`, a propósito. Todo el router requiere rol `admin`.
+
+| Método | Endpoint | Auth | Descripción | Estado |
+|---|---|---|---|---|
+| `GET` | `/api/sidewalks/nodes` | ✅ Admin | Listar nodos de acera | ✅ Listo |
+| `POST` | `/api/sidewalks/nodes` | ✅ Admin | Crear un nodo (lat/lng) | ✅ Listo |
+| `DELETE` | `/api/sidewalks/nodes/{id}` | ✅ Admin | Borrar nodo (cascada sobre sus aristas) | ✅ Listo |
+| `GET` | `/api/sidewalks/edges` | ✅ Admin | Listar conexiones entre nodos | ✅ Listo |
+| `POST` | `/api/sidewalks/edges` | ✅ Admin | Conectar dos nodos (rechaza self-edge y duplicados) | ✅ Listo |
+| `DELETE` | `/api/sidewalks/edges/{id}` | ✅ Admin | Borrar una conexión | ✅ Listo |
+
+### 🔧 Administración — `/api/admin`
+
+| Método | Endpoint | Auth | Descripción | Estado |
+|---|---|---|---|---|
+| `GET` | `/api/admin/users` | ✅ Admin | Listar usuarios y su rol | ✅ Listo |
+| `PUT` | `/api/admin/users/{id}/role` | ✅ Admin | Cambiar el rol de un usuario (`user`/`admin`) | ✅ Listo |
+
+> ⚠️ No hay forma de crear el primer admin por API a propósito (evita que
+> cualquiera se auto-ascienda) — el primero siempre se promueve a mano en la
+> base de datos (`UPDATE users SET role='admin' WHERE email='...'`), y de ahí
+> en adelante ya se puede usar este endpoint.
 
 ### 📌 POIs — `/api/poi`
 
@@ -216,6 +263,12 @@ app/
 | `POST` | `/api/ar/update-overlay` | ✅ JWT | Actualizar overlay AR | ⏳ Pendiente |
 | `GET` | `/api/ar/config` | ✅ JWT | Configuración AR | ⏳ Pendiente |
 | `POST` | `/api/ar/update-route` | ✅ JWT | Actualizar ruta en AR | ⏳ Pendiente |
+
+> ℹ️ El AR en sí (flecha direccional + línea del camino sobre la cámara) ya
+> está implementado, pero **100% del lado del frontend** (Flutter, por
+> sensores: cámara + brújula + GPS) — no necesita ni usa ningún endpoint de
+> este backend. Esta tabla queda para si en el futuro se agrega algo que sí
+> necesite guardar/consultar estado de AR en el servidor.
 
 ---
 
@@ -255,6 +308,31 @@ locations (ubicaciones universitarias)
 ├── is_active
 ├── created_at
 └── updated_at
+
+sidewalk_nodes (puntos de acera, invisibles para la app)
+├── id (UUID, PK)
+├── latitude
+├── longitude
+└── is_active
+
+sidewalk_edges (conexión caminable entre dos nodos)
+├── id (UUID, PK)
+├── node_a_id (FK → sidewalk_nodes)
+├── node_b_id (FK → sidewalk_nodes)
+├── distance_m
+└── is_active
+
+navigation_routes
+├── id (UUID, PK)
+├── user_id (FK → users)
+├── origin_lat / origin_lng
+├── destination_lat / destination_lng
+├── destination_name
+├── distance_m / duration_s
+├── points (JSON — polyline completa)
+├── steps (JSON — instrucciones de giro)
+├── status ('calculated' | 'active' | 'finished')
+├── created_at / started_at / finished_at
 ```
 
 ---
@@ -265,6 +343,23 @@ locations (ubicaciones universitarias)
 - Autenticación stateless con **JWT (HS256)**
 - Google Sign-In verificado vía **Firebase ID Token**
 - Tokens con expiración configurable (default 60 min)
+
+---
+
+## 🧪 Pruebas
+
+```bash
+pytest -v
+```
+
+Corren contra una base SQLite descartable (no tocan tu Postgres real) y
+contra una credencial de Firebase falsa generada al vuelo — no necesitás
+tener `.env` ni `firebase-service-account.json` configurados para correrlas.
+Cubren autenticación, CRUD de aceras (con control de rol admin) y el motor
+de rutas (estabilidad del snapping, ruta directa en el mismo tramo, giros).
+
+Se corren automáticamente en GitHub Actions en cada push/PR — ver
+`.github/workflows/backend-tests.yml`.
 
 ---
 
@@ -279,11 +374,12 @@ Con el servidor corriendo:
 ## 🚀 Desarrollo futuro
 
 ```
-feature/navigation    → Cálculo de rutas peatonales
-feature/yolo          → Detección de objetos con YOLOv8
-feature/segformer     → Segmentación de escena
-feature/ar            → Overlays de realidad aumentada
-feature/favorites     → Tabla y CRUD completo de favoritos
-feature/admin         → Panel de administración y roles
+feature/yolo          → Detección de obstáculos en tiempo real (on-device, TFLite)
+feature/segformer     → Segmentación de aceras desde la cámara (on-device)
+feature/favorites     → Tabla real de favoritos (hoy los endpoints existen pero son stub)
 feature/alerts        → Sistema de alertas en tiempo real
 ```
+
+Ya no están en esta lista porque ya están implementados: cálculo de rutas
+peatonales (`/api/navigation`), grafo de aceras (`/api/sidewalks`), panel de
+administración con roles (`/admin` + `/api/admin/users`).
