@@ -228,4 +228,9 @@ __pycache__/
 
 # Firebase Admin service account (secreto — no commitear)
 firebase-service-account.json
+<<<<<<< HEAD
 >>>>>>> cddeed2 (Merge pull request #7 from utn-integrador-III/Test-Google-sign-in)
+=======
+INSTRUCCIONES_PABLO.txt
+GUIA_PARA_CHOFI.md
+>>>>>>> 262a008 (Merge pull request #13 from utn-integrador-III/US9-14-15-16-17-18-19-20)
