@@ -9,6 +9,7 @@ from app.database.database import get_db
 from app.models.navigation_route_model import NavigationRoute
 from app.models.user_model import User
 from app.api.profile_router import get_current_user
+from app.api.preferences_router import _get_or_create as _get_or_create_preferences
 from app.services.routing_service import compute_route, NoWalkableRouteError
 from app.utils.geo import distance_text
 
@@ -87,9 +88,11 @@ def create_route(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    prefs = _get_or_create_preferences(db, current_user)
     try:
         result = compute_route(
-            db, body.origin_lat, body.origin_lng, body.destination_lat, body.destination_lng
+            db, body.origin_lat, body.origin_lng, body.destination_lat, body.destination_lng,
+            walking_speed_mps=prefs.walking_speed_mps,
         )
     except NoWalkableRouteError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -123,9 +126,11 @@ def recalculate_route(
 ):
     route = _get_owned_route(db, body.route_id, current_user)
 
+    prefs = _get_or_create_preferences(db, current_user)
     try:
         result = compute_route(
-            db, body.current_lat, body.current_lng, route.destination_lat, route.destination_lng
+            db, body.current_lat, body.current_lng, route.destination_lat, route.destination_lng,
+            walking_speed_mps=prefs.walking_speed_mps,
         )
     except NoWalkableRouteError as e:
         raise HTTPException(status_code=422, detail=str(e))

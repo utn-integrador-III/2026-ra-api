@@ -226,3 +226,5 @@ __pycache__/
 
 # Firebase Admin service account (secreto — no commitear)
 firebase-service-account.json
+INSTRUCCIONES_PABLO.txt
+GUIA_PARA_CHOFI.md
